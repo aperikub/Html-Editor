@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Éditeur HTML simple pour ServiceNow</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f7f7f7;
+      color: #222;
+    }
+
+    h1 {
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+
+    p.help {
+      margin-top: 0;
+      color: #555;
+      line-height: 1.3;
+    }
+
+    .toolbar, .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+
+    .toolbar button,
+    .toolbar select,
+    .toolbar input[type="color"],
+    .actions button {
+      padding: 8px 10px;
+      border: 1px solid #bbb;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .toolbar button:hover,
+    .actions button:hover {
+      background: #efefef;
+    }
+
+    .toolbar label {
+      font-size: 14px;
+      color: #333;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #fff;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      padding: 6px 8px;
+    }
+
+    #editor {
+      min-height: 260px;
+      background: white;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      padding: 12px;
+      overflow: auto;
+      line-height: 1.25;
+    }
+
+    #editor:focus {
+      outline: 2px solid #999;
+      outline-offset: 0;
+    }
+
+    #editor p,
+    #editor h1,
+    #editor h2,
+    #editor h3,
+    #editor blockquote,
+    #editor ul,
+    #editor ol {
+      margin-top: 2px;
+      margin-bottom: 2px;
+    }
+
+    #editor li {
+      margin: 0;
+    }
+
+    #editor blockquote {
+      padding-left: 10px;
+      border-left: 3px solid #ccc;
+    }
+
+    #editor img {
+      max-width: 100%;
+      height: auto;
+      display: inline-block;
+      margin: 2px 0;
+    }
+
+    .section-title {
+      margin: 18px 0 8px;
+      font-weight: bold;
+      font-size: 15px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      padding: 12px;
+      font-family: Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.2;
+      background: #fff;
+      box-sizing: border-box;
+      white-space: pre-wrap;
+    }
+
+    .small-note {
+      margin-top: 8px;
+      color: #666;
+      font-size: 13px;
+      line-height: 1.3;
+    }
+  </style>
+</head>
+<body>
+  <h1>Éditeur HTML simple pour ServiceNow</h1>
+  <p class="help">
+    Rédige ton contenu puis clique sur <strong>Générer le HTML</strong>. Le résultat est nettoyé pour rester simple et
+    compatible avec un collage dans des champs de type work notes / comments / HTML.
+  </p>
+
+  <div class="toolbar">
+    <button type="button" onclick="runCmd('bold')"><strong>Gras</strong></button>
+    <button type="button" onclick="runCmd('italic')"><em>Italique</em></button>
+    <button type="button" onclick="runCmd('strikeThrough')"><s>Barré</s></button>
+    <button type="button" onclick="runCmd('insertUnorderedList')">Liste à puces</button>
+    <button type="button" onclick="runCmd('insertOrderedList')">Liste numérotée</button>
+    <button type="button" onclick="indentContent()">Indent +</button>
+    <button type="button" onclick="outdentContent()">Indent -</button>
+
+    <select id="blockFormat" onchange="applyBlockFormat()">
+      <option value="">Format</option>
+      <option value="p">Paragraphe</option>
+      <option value="h1">Titre 1</option>
+      <option value="h2">Titre 2</option>
+      <option value="h3">Titre 3</option>
+      <option value="blockquote">Citation</option>
+    </select>
+
+    <button type="button" onclick="createLink()">Lien</button>
+    <button type="button" onclick="runCmd('unlink')">Retirer lien</button>
+    <button type="button" onclick="insertImage()">Image</button>
+
+    <label>
+      Couleur
+      <input type="color" id="foreColor" value="#000000" onchange="applyColor('foreColor', this.value)">
+    </label>
+
+    <label>
+      Surlignage
+      <input type="color" id="hiliteColor" value="#ffff00" onchange="applyColor('hiliteColor', this.value)">
+    </label>
+
+    <button type="button" onclick="clearFormatting()">Effacer format</button>
+  </div>
+
+  <div id="editor" contenteditable="true">
+    <p>Écris ici ton contenu...</p>
+  </div>
+
+  <div class="actions" style="margin-top:12px;">
+    <button type="button" onclick="generateHtml()">Générer le HTML</button>
+    <button type="button" onclick="copyHtml()">Copier le HTML</button>
+    <button type="button" onclick="clearEditor()">Vider</button>
+  </div>
+
+  <div class="section-title">HTML généré</div>
+  <textarea id="output" readonly></textarea>
+  <div class="small-note">
+    L’éditeur réduit les interlignes, conserve l’indentation des paragraphes et des listes via
+    <code>margin-left</code>, garde les balises <code>&lt;img src=&quot;...&quot; alt=&quot;&quot; /&gt;</code> insérées par URL,
+    puis encadre automatiquement le résultat avec les balises [code] et [/code].
+  </div>
+
+  <script>
+    function focusEditor() {
+      document.getElementById('editor').focus();
+    }
+
+    function runCmd(command, value = null) {
+      focusEditor();
+      document.execCommand(command, false, value);
+    }
+
+    function applyBlockFormat() {
+      const value = document.getElementById('blockFormat').value;
+      if (!value) return;
+      runCmd('formatBlock', value);
+      document.getElementById('blockFormat').value = '';
+    }
+
+    function applyColor(command, value) {
+      runCmd('styleWithCSS', true);
+      runCmd(command, value);
+    }
+
+    function createLink() {
+      const url = prompt('URL du lien :', 'https://');
+      if (!url) return;
+      runCmd('createLink', url);
+    }
+
+    function insertImage() {
+      const url = prompt('URL de l’image :', 'https://');
+      if (!url) return;
+
+      focusEditor();
+
+      const img = document.createElement('img');
+      img.setAttribute('src', url);
+      img.setAttribute('alt', '');
+
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+        range.insertNode(img);
+        range.setStartAfter(img);
+        range.setEndAfter(img);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      } else {
+        document.getElementById('editor').appendChild(img);
+      }
+    }
+
+    function getClosestBlock(node) {
+      while (node && node !== document.body) {
+        if (node.nodeType === Node.ELEMENT_NODE && ['P','H1','H2','H3','BLOCKQUOTE','UL','OL','LI'].includes(node.tagName)) {
+          return node;
+        }
+        node = node.parentNode;
+      }
+      return null;
+    }
+
+    function adjustMargin(node, delta) {
+      if (!node || node.nodeType !== Node.ELEMENT_NODE) return;
+      const current = parseInt(node.style.marginLeft || '0', 10) || 0;
+      const next = Math.max(0, current + delta);
+      if (next === 0) {
+        node.style.removeProperty('margin-left');
+      } else {
+        node.style.marginLeft = next + 'px';
+      }
+    }
+
+    function indentContent() {
+      focusEditor();
+      const selection = window.getSelection();
+      const anchorNode = selection ? selection.anchorNode : null;
+      const block = getClosestBlock(anchorNode);
+
+      if (block && (block.tagName === 'LI' || block.tagName === 'UL' || block.tagName === 'OL')) {
+        runCmd('indent');
+        return;
+      }
+
+      if (block) {
+        adjustMargin(block, 20);
+      }
+    }
+
+    function outdentContent() {
+      focusEditor();
+      const selection = window.getSelection();
+      const anchorNode = selection ? selection.anchorNode : null;
+      const block = getClosestBlock(anchorNode);
+
+      if (block && (block.tagName === 'LI' || block.tagName === 'UL' || block.tagName === 'OL')) {
+        runCmd('outdent');
+        return;
+      }
+
+      if (block) {
+        adjustMargin(block, -20);
+      }
+    }
+
+    function clearFormatting() {
+      runCmd('removeFormat');
+      runCmd('unlink');
+    }
+
+    function clearEditor() {
+      document.getElementById('editor').innerHTML = '<p></p>';
+      document.getElementById('output').value = '';
+      focusEditor();
+    }
+
+    function cleanNode(node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return document.createTextNode(node.nodeValue);
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        return document.createDocumentFragment();
+      }
+
+      const tag = node.tagName.toLowerCase();
+      let allowedTag = null;
+
+      if (['p', 'br', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 's', 'strike', 'a', 'h1', 'h2', 'h3', 'blockquote', 'img'].includes(tag)) {
+        allowedTag = tag;
+      } else if (tag === 'div') {
+        allowedTag = 'p';
+      } else if (tag === 'span' || tag === 'font') {
+        allowedTag = 'span';
+      } else {
+        allowedTag = 'span';
+      }
+
+      const newNode = document.createElement(allowedTag);
+
+      if (allowedTag === 'a') {
+        const href = node.getAttribute('href');
+        if (href) {
+          newNode.setAttribute('href', href);
+          newNode.setAttribute('target', '_blank');
+          newNode.setAttribute('rel', 'noopener noreferrer');
+        }
+      }
+
+      if (allowedTag === 'img') {
+        const src = node.getAttribute('src');
+        if (!src) {
+          return document.createDocumentFragment();
+        }
+        newNode.setAttribute('src', src);
+        newNode.setAttribute('alt', node.getAttribute('alt') || '');
+        return newNode;
+      }
+
+      let styles = [];
+      const style = node.getAttribute('style') || '';
+
+      const colorMatch = style.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
+      const bgMatch = style.match(/(?:^|;)\s*(?:background|background-color)\s*:\s*([^;]+)/i);
+      const mlMatch = style.match(/(?:^|;)\s*margin-left\s*:\s*([^;]+)/i);
+
+      if (colorMatch) {
+        styles.push('color: ' + colorMatch[1].trim());
+      }
+      if (bgMatch) {
+        styles.push('background-color: ' + bgMatch[1].trim());
+      }
+      if (mlMatch) {
+        styles.push('margin-left: ' + mlMatch[1].trim());
+      }
+
+      if (styles.length && ['span', 'p', 'h1', 'h2', 'h3', 'blockquote', 'li', 'a', 'ul', 'ol'].includes(allowedTag)) {
+        newNode.setAttribute('style', styles.join('; '));
+      }
+
+      Array.from(node.childNodes).forEach(child => {
+        newNode.appendChild(cleanNode(child));
+      });
+
+      return normalizeSemanticTag(newNode);
+    }
+
+    function normalizeSemanticTag(node) {
+      const tag = node.tagName ? node.tagName.toLowerCase() : '';
+
+      if (tag === 'b') {
+        const replacement = document.createElement('strong');
+        copyAttrsAndChildren(node, replacement);
+        return replacement;
+      }
+
+      if (tag === 'i') {
+        const replacement = document.createElement('em');
+        copyAttrsAndChildren(node, replacement);
+        return replacement;
+      }
+
+      if (tag === 'strike') {
+        const replacement = document.createElement('s');
+        copyAttrsAndChildren(node, replacement);
+        return replacement;
+      }
+
+      if (tag === 'span' && !node.getAttribute('style')) {
+        const fragment = document.createDocumentFragment();
+        while (node.firstChild) {
+          fragment.appendChild(node.firstChild);
+        }
+        return fragment;
+      }
+
+      return node;
+    }
+
+    function copyAttrsAndChildren(fromNode, toNode) {
+      Array.from(fromNode.attributes || []).forEach(attr => {
+        toNode.setAttribute(attr.name, attr.value);
+      });
+      while (fromNode.firstChild) {
+        toNode.appendChild(fromNode.firstChild);
+      }
+    }
+
+    function postCleanHtml(html) {
+      html = html.replace(/<p>\s*<\/p>/g, '');
+      html = html.replace(/<p><br><\/p>/g, '');
+      html = html.replace(/\s+(style="")/g, '');
+      html = html.replace(/>\s+</g, '><');
+      return html.trim();
+    }
+
+    function generateHtml() {
+      const editor = document.getElementById('editor');
+      const container = document.createElement('div');
+
+      Array.from(editor.childNodes).forEach(child => {
+        container.appendChild(cleanNode(child));
+      });
+
+      const cleaned = postCleanHtml(container.innerHTML);
+      document.getElementById('output').value = '[code]\n' + cleaned + '\n[/code]';
+    }
+
+    async function copyHtml() {
+      const output = document.getElementById('output');
+      if (!output.value.trim()) {
+        generateHtml();
+      }
+
+      try {
+        await navigator.clipboard.writeText(output.value);
+        alert('HTML copié dans le presse-papiers.');
+      } catch (e) {
+        output.select();
+        document.execCommand('copy');
+        alert('HTML copié dans le presse-papiers.');
+      }
+    }
+  </script>
+</body>
+</html>
