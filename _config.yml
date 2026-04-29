@@ -1,1 +1,3 @@
-
+theme: jekyll-theme-minimal
+title: Servicenow HTML Editor
+description: Generates Work Notes compatible code
