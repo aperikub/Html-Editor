@@ -1,0 +1,124 @@
+body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f7f7f7;
+      color: #222;
+    }
+
+    h1 {
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+
+    p.help {
+      margin-top: 0;
+      color: #555;
+      line-height: 1.25;
+    }
+
+    .toolbar, .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+
+    .toolbar button,
+    .toolbar select,
+    .toolbar input[type="color"],
+    .actions button {
+      padding: 8px 10px;
+      border: 1px solid #bbb;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .toolbar button:hover,
+    .actions button:hover {
+      background: #efefef;
+    }
+
+    .toolbar label {
+      font-size: 14px;
+      color: #333;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #fff;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      padding: 6px 8px;
+    }
+
+    #editor {
+      min-height: 260px;
+      background: white;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      padding: 12px;
+      overflow: auto;
+      line-height: 1.12;
+    }
+
+    #editor:focus {
+      outline: 2px solid #999;
+      outline-offset: 0;
+    }
+	
+	#editor:empty::before {
+	  content: attr(data-placeholder);
+	  color: #888;
+	  pointer-events: none;
+	}
+	
+    #editor div,
+    #editor h1,
+    #editor h2,
+    #editor h3,
+    #editor blockquote,
+    #editor ul,
+    #editor ol {
+      margin-top: 2px;
+      margin-bottom: 2px;
+    }
+
+    #editor li {
+      margin: 0;
+    }
+
+    #editor img {
+      max-width: 100%;
+      height: auto;
+      display: inline-block;
+      margin: 2px 0;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 260px;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      padding: 12px;
+      font-family: Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.15;
+      background: #fff;
+      box-sizing: border-box;
+      white-space: pre-wrap;
+    }
+
+    .section-title {
+      margin: 18px 0 8px;
+      font-weight: bold;
+      font-size: 15px;
+    }
+
+    .small-note {
+      margin-top: 8px;
+      color: #666;
+      font-size: 13px;
+      line-height: 1.25;
+    }
